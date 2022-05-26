@@ -4,7 +4,7 @@ Simple file server for personal use
 USAGE:
 
     Arguments:
-    
+
     Path:
         The path that is taken for any of the operations
     
@@ -37,8 +37,13 @@ Upcoming Functionality:
 
 KNOWN BUGS AND ISSUES:
 
-    1. file path should only be a required argument for uploading
-    2. all code is slightly inefficient or could be written in a more concise way
+    1. all code is slightly inefficient or could be written in a more concise way
+    2. putting an invalid directory in when uploading a file results in infinite loop
+    3. client code does not check if the server is actually alive, implement ping echoing for server
+    4. server overwrites duplicate files, instead of adding a number to the end
+    5. exceptions are handled too generally, allowing infinite loops of errors
+    6. implement escapes if the server response is not 200
+    7. when downloading files, the server doesnt check if the given path is an actual file, or if its just a directory
 
 SCRIPT DESCRIPTIONS:
 

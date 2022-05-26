@@ -4,20 +4,24 @@ import requests
 import os
 import sys
 import argparse
-import json
 from pathlib import Path
 import chardet
+from colorama import Fore, Back, Style
+import shutil
 
 #TODO implement way to delete directories, move files within file server, and automatically update server
+#TODO make a better UI system
 
-HOSTNAME = '127.0.0.1'
+#TODO move this stuff into a config file
+HOSTNAME = "craptop" #this has to be changed for whatever your server's hostname is
 PORT = 8000
 
 base_url = f'http://{HOSTNAME}:{PORT}'
 
-downloads = 'downloads'
+downloads = "downloads" #in the future, allow to specify a downloads folder
 
 #Make root folder if it doesnt already exist
+#TODO notify user that a new folders was made
 if not os.path.exists(downloads):
     os.makedirs(downloads)
 
@@ -34,82 +38,126 @@ Arguments:
         [update] update server 
 '''
 
-parser = argparse.ArgumentParser(description='Access the local file server')
-parser.add_argument('fileServerPath', metavar = 'path', type = str, help = 'The destination path within the file server')
-parser.add_argument('filePath', metavar = 'file path', type = str, help = 'The path of the client file')
-parser.add_argument('Operation', metavar = 'operation', type = str, help = '[d] Download, [u] Upload, [m] Make Directory, [v] View Directory, [update] update')
-args = parser.parse_args()
-
-path = args.fileServerPath
-op = args.Operation
-filePath = args.filePath
-
 #Encoding prediction function
-def predict_encoding(file_path: Path, n_lines: int=20) -> str:
+def predict_encoding(path, n_lines: int=20) -> str:
     '''Predict a file's encoding using chardet'''
-
     # Open the file as binary data
-    with Path(file_path).open('rb') as f:
+    with open(path,'rb') as f:
         # Join binary lines for specified number of lines
         rawdata = b''.join([f.readline() for _ in range(n_lines)])
 
     return chardet.detect(rawdata)['encoding']
 
-def client():
-    #make sure a file path was provided if operation reqiores it
-    if op == 'u' and not os.path.isfile(filePath):
-        print("Invalid or unprovided client file path")
-        sys.exit()
+#Encoding prediction function FOR RAW DATA
+def predict_encoding_RAW(rawdata, n_lines: int=20) -> str:
+    '''Predict raw data's encoding using chardet'''
+    return chardet.detect(rawdata)['encoding']
 
-    if op == 'v':
-        response = viewDir()
-        if response[0] == '[': #Makes sure that we got a successful response, in the form of a list by checking the last character
-            #Formatting response
-            entries = response[1:-1].split(',') #removes brackets
-            n=1
+def client():
+    #UI
+    os.system('cls||clear')
+    columns = shutil.get_terminal_size().columns
+    print(f'='*columns)
+    print(f'{Fore.CYAN}FILE SERVER CLI'.center(columns))
+    print(f'{Fore.RED}{quit}{Style.RESET_ALL}'.center(columns))
+    print(f'='*columns)
+    
+    #TODO maybe show the file system structure
+    while True:
+        op = input(f'{Fore.GREEN}Enter Operation: [d] [u] [m] [v] [-h] [update] [clear]\n{Fore.YELLOW}')
+        
+        #Upload file command
+        if op == 'u':
+            path = input(f"{Fore.GREEN}Enter destination path: {Fore.YELLOW}")
             while True:
-                if path.split("/")[-1*n] == "":
-                    n+=1
+                filePath = input(f'{Fore.GREEN}Enter Source path: {Fore.YELLOW}')
+                if not os.path.isfile(filePath):
+                    print(f"{Fore.RED}ERROR:{Style.RESET_ALL} Invalid path, try again")
                 else:
+                    #Upload file
+                    print(f'{Fore.CYAN}{upload(filePath,path)}{Fore.WHITE}')
                     break
 
-            print("----------------------------------------------")
-            print(f'Contents of "{path.split("/")[-1*n]}" directory')
-            print("----------------------------------------------")
-            
-            #print out the entries inside of the directory
-            if entries[0] == '':
-                print("EMPTY DIRECTORY")
+        elif op == 'v':
+            path = input(f"{Fore.GREEN}Enter server path: {Fore.YELLOW}")
+            #send request to file server
+            r = requests.get(f'{base_url}/VDIR/{path}')
+
+            #do this at the beginning of every command
+            if r.status_code != 200:
+                print(f'{Fore.RED}ERROR: {Fore.WHITE}Server connection error')
+                sys.exit()
+            r=r.text
+            #Make sure that we got a successful response, in the form of a list by checking the last character
+            if r[0] == '[': 
+                #Formatting response
+                entries = r[1:-1].split(',') #removes brackets
+                n=1
+                while True:
+                    if path.split("/")[-1*n] == "":
+                        n+=1
+                    else:
+                        break
+
+                print(f"{Style.RESET_ALL}="*46)
+                print(f'{Fore.CYAN}Contents of "{path.split("/")[-1*n]}" directory'.center(52))
+                print(f"{Fore.WHITE}="*46)
+                
+                #print out the entries inside of the directory
+                if entries[0] == '':
+                    print("EMPTY DIRECTORY")
+                else:
+                    for e in entries:
+                        print(f'{Fore.RED}[{str(entries.index(e)+1)}] - {Fore.WHITE}{e.strip()[1:-1]}')
             else:
-                for e in entries:
-                    print(f'[{str(entries.index(e))}] {e.strip()[1:-1]}')
+                print(f'{Fore.WHITE}='*46)
+                print(f'{Fore.RED}ERROR:{Fore.WHITE} {r}'.center(56))
+                print(f'{Fore.WHITE}='*46)
+    
+        elif op == 'm':
+            path = input(f"{Fore.GREEN}Enter server path: {Fore.YELLOW}")
+            
+            r=requests.get(f'{base_url}/CDIR/{path}')
+
+            #do this at the beginning of every command
+            if r.status_code != 200:
+                print(f'{Fore.RED}ERROR: {Fore.WHITE}Server connection error')
+                sys.exit()
+
+            print(r.text) #see if we can eliminate these print statements
+
+        elif op == 'd':
+            #print("this is broken as of now")
+            path = input(f"{Fore.GREEN}Enter server path: {Fore.YELLOW}")
+            print(fetch(path))
+
+        elif op == 'update':
+            print(f'{Fore.RED}Sorry! update functionality has not yet been implemented{Fore.WHITE}')
+        
+        elif op == 'clear':
+            os.system('cls||clear')
+            columns = shutil.get_terminal_size().columns
+            print(f'{Fore.WHITE}='*columns)
+            print(f'{Fore.CYAN}FILE SERVER CLI'.center(columns))
+            print(f'{Fore.RED}{quit}{Style.RESET_ALL}'.center(columns))
+            print(f'='*columns)
+        
+        elif op == '-h':
+            print("Help manual coming soon")
+
         else:
-            print("----------------------------------------------")
-            print(f'ERROR: {response}')
-            print("----------------------------------------------")
-   
-    if op == 'm':
-        print(makeDir())
+            print(f'{Fore.RED}ERROR: {Fore.WHITE}Invalid input!')
 
-    if op == 'd':
-        print(fetch())
-
-    if op == 'u':
-        print(upload())
-    if op == 'update':
-        pass
-
-    return
-
-def upload():
+def upload(filePath,path):
     #assemble POST url
     url = f'{base_url}/UFIL/{path}'
 
     n=20
     while True: #open file with correct encoding
         codec = predict_encoding(filePath,n_lines = n)
+        
         if n > 100:
-            return 'ERROR: NO ENCODING WAS FOUND'
+            return f'{Fore.RED}ERROR: {Fore.WHITE}NO ENCODING WAS FOUND'
         if codec == None: #binary file
             try:
                 with open(filePath,'rb') as f:
@@ -122,8 +170,7 @@ def upload():
                     f.close()
                     return r.text
             except Exception as e:
-                print(e)
-                print(f'WARNING: {codec} did not work, trying again')
+                print(f'{Fore.RED}WARNING:{Fore.WHITE} {codec} did not work, trying again')
                 n+=1
         else:
             try:
@@ -138,17 +185,24 @@ def upload():
                     f.close()
                     return r.text
             except Exception as e:
-                print(e)
-                print(f'WARNING: {codec} did not work, trying again')
+                print(f'{Fore.RED}WARNING:{Fore.WHITE} {codec} did not work, trying again')
                 n+=1
 
-def fetch():
+#TODO Fetch is broken with the new UI update
+def fetch(path):
     r = requests.get(f'{base_url}/RFIL/{path}')
 
+    #do this at the beginning of every command
     if r.status_code != 200:
-        return 'Server Connection Error'
+        print(f'{Fore.RED}ERROR: {Fore.WHITE}Server connection error')
+        sys.exit()
+    
+    if(r.content.decode('utf-8')[0:5] == "ERROR"):
+        print(r.content.decode('utf-8'))
+        return
 
-    filename = path.split("/")
+    #path handling can be made safer with OS, the while loop is dangerous
+    filename = path.split("/") #get the filename from the path
     n = -1
     while True:
         if filename[n] == ' ':
@@ -161,38 +215,34 @@ def fetch():
     n=20 #starting number of lines
 
     while True: #Encoding may not always be right the first time due to sampling lines
-        codec = predict_encoding(path,n_lines=n) 
+        codec = predict_encoding_RAW(r.content,n_lines=n) 
         if n > 100: #threshold before breaking out, since reading too many lines may take too long
-            return 'ERROR NO ENCODING WAS FOUND', 'utf-8'
+            print(f'{Fore.RED}ERROR: {Fore.WHITE}NO ENCODING WAS FOUND')
+            return
 
         if codec == None: #binary file
             try:
                 with open(f'{downloads}/{filename}','wb') as f:
-                    f.write(r.content)
+                    f.write(r.content) #Errors could happen here
                     f.close()
-                return f'Successfully downloaded "{filename}" to {downloads}'
-            except Exception:
-                print(f'WARNING: {codec} did not work, trying again')
+                    print(f'{Fore.CYAN}Successfully downloaded "{Fore.WHITE}{filename}{Fore.CYAN}" to {downloads}')
+                return 
+
+            except Exception: #TODO this exception is too general
+                print(f'{Fore.RED}WARNING: {Fore.WHITE}{codec} did not work, trying again')
                 n+=1 #increment number of lines to sample by 1
 
         else: #not a binary file (usually just a txt file)
             try:
                 with open(f'{downloads}/{filename}','w',encoding=codec) as f:
-                    f.write(r.content)
+                    f.write(r.content) #Errors could happen here
                     f.close()
-                return f'Successfully downloaded "{filename}" to {downloads}'
-            except Exception:
-                print(f'WARNING: {codec} did not work, trying again')
+                    print(f'{Fore.CYAN}Successfully downloaded "{Fore.WHITE}{filename}{Fore.CYAN}" to {downloads}')
+                return
+
+            except Exception: #TODO this exception is too general
+                print(f'{Fore.RED}WARNING: {Fore.WHITE}{codec} did not work, trying again')
                 n+=1 #increment number of lines to sample by 1
-
-def viewDir():
-    r = requests.get(f'{base_url}/VDIR/{path}')
-    return r.text
-
-def makeDir():
-    #print(f'{base_url}/CDIR/{path}')
-    r = requests.get(f'{base_url}/CDIR/{path}')
-    return r.text
 
 if __name__ == '__main__':
     client()

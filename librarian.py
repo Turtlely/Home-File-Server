@@ -71,7 +71,7 @@ def viewDir(path):
 def getFile(path):
     #Basic security 
     if path[0:2+len(root_folder)] != f'/{root_folder}/':
-        return 'Path not in file structure'
+        return 'ERROR: Path not in file structure', 'ERROR'
     path = root_folder + path[1+len(root_folder):]
 
     if os.path.isfile(path):
@@ -81,30 +81,32 @@ def getFile(path):
             codec = predict_encoding(path,n_lines=n) 
 
             if n > 100: #threshold before breaking out, since reading too many lines may take too long
-                return 'ERROR NO ENCODING WAS FOUND', 'utf-8'
+                return 'ERROR: NO ENCODING WAS FOUND', 'ERROR'
 
             if codec == None: #binary file
                 try:
                     with open(path,'rb') as f:
                         file = f.read()
-                    f.close()
-                    return file, codec
+                        f.close()
+                    return file, None
 
-                except UnicodeDecodeError:
+                #except UnicodeDecodeError:
+                except Exception:
                     n+=1 #increment number of lines to sample by 1
 
             else: #not a binary file (usually just a txt file)
                 try:
                     with open(path,'r',encoding=codec) as f:
                         file = f.read()
-                    f.close()
+                        f.close()
                     return file, codec
 
-                except UnicodeDecodeError:
+                #except UnicodeDecodeError:
+                except Exception:
                     n+=1 #increment number of lines to sample by 1
 
     else:
-        return 'This file doesnt exist here!'
+        return 'ERROR: This file doesnt exist here!', 'ERROR'
     
 #Store file for client to a directory
 def storeFile(path,filename,codec,post_data):

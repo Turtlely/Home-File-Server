@@ -57,14 +57,15 @@ class Server(Handler):
             directory_path = self.path[5:]
             f = getFile(directory_path)
             
-            l = [str(f[0]),str(f[1])]
+            if f[1] == 'ERROR':
+                print(f'ERROR: {f[0]}')
+                self.wfile.write(bytes(f[0],'utf-8'))
 
-            if f[1] == None:
-                self.wfile.write(bytes(f[0]))
-                #self.wfile.write(bytes(' None',encoding='utf-8'))
+            elif f[1] == None:
+                self.wfile.write(f[0])
+            
             else:
-                self.wfile.write(bytes(f[0]))
-                #self.wfile.write(bytes(' '+f[1],encoding='utf-8'))
+                self.wfile.write(bytes(f[0],f[1]))
 
 
             print('------------------^^DONE^^----------------')
