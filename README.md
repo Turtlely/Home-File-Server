@@ -3,18 +3,18 @@ Simple file server for personal use
 
 USAGE: 
     Arguments:
-        Path:
-            The path that is taken for any of the operations
-        
-        File path:
-            The path of the client file (Only used when uploading files)
+    Path:
+        The path that is taken for any of the operations
+    
+    File path:
+        The path of the client file (Only used when uploading files)
 
-        Operation:
-            [d] download from server
-            [u] upload to server
-            [m] make director
-            [v] view directory
-            [update] update server 
+    Operation:
+        [d] download from server
+        [u] upload to server
+        [m] make director
+        [v] view directory
+        [update] update server 
 
 
 As of now, it has the following functionality:
