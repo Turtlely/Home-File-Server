@@ -1,7 +1,8 @@
 # home file server
 Simple file server for personal use
 
-USAGE: 
+USAGE:
+
     Arguments:
     Path:
         The path that is taken for any of the operations
