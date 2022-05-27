@@ -20,6 +20,7 @@ def predict_encoding(file_path: Path, n_lines: int=20) -> str:
 
     return chardet.detect(rawdata)['encoding']
 
+#put this into a config
 #Name of the root folder, the program will only access and modify files within this folder
 #Multiple roots may be possible to create isolated filesystems
 root_folder = 'root'
@@ -90,19 +91,17 @@ def getFile(path):
                         f.close()
                     return file, None
 
-                #except UnicodeDecodeError:
-                except Exception:
+                except UnicodeDecodeError: #TODO make sure this catches all possible errors
                     n+=1 #increment number of lines to sample by 1
 
-            else: #not a binary file (usually just a txt file)
+            else: #not a binary file
                 try:
                     with open(path,'r',encoding=codec) as f:
                         file = f.read()
                         f.close()
                     return file, codec
 
-                #except UnicodeDecodeError:
-                except Exception:
+                except UnicodeDecodeError: #TODO make sure this catches all possible errors
                     n+=1 #increment number of lines to sample by 1
 
     else:
@@ -110,7 +109,7 @@ def getFile(path):
     
 #Store file for client to a directory
 def storeFile(path,filename,codec,post_data):
-    #in case a file already exists with the same name, add a number to the end
+    #in case a file already exists with the same name, add a number to the end TODO fix this feature
     count = 0
     path = root_folder + path[1+len(root_folder):]
     print(path)
@@ -122,10 +121,10 @@ def storeFile(path,filename,codec,post_data):
                         f.close()
                         print('------------------^^DONE^^----------------')
                         return 'Successfully uploaded'
-                except Exception as e:
+                except Exception as e: #too general, does not distinguish between file already exists error and unicode decode error
                     count+=1
                     print(e)
-                    filename + str(count)
+                    #filename += str(count)
     else:
         while True:
             try:
@@ -134,7 +133,7 @@ def storeFile(path,filename,codec,post_data):
                     f.close()
                     print('------------------^^DONE^^----------------')
                     return 'Successfully uploaded'
-            except Exception as e:
+            except Exception as e: #too general, does not distinguish between file already exists error and unicode decode error
                 count+=1
                 print(e)
-                filename + str(count)
+                #filename += str(count)

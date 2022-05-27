@@ -13,12 +13,24 @@ import shutil
 #TODO make a better UI system
 
 #TODO move this stuff into a config file
-HOSTNAME = "craptop" #this has to be changed for whatever your server's hostname is
+HOSTNAME = "localhost" #this has to be changed for whatever your server's hostname is
 PORT = 8000
 
 base_url = f'http://{HOSTNAME}:{PORT}'
 
 downloads = "downloads" #in the future, allow to specify a downloads folder
+
+#Server connection check
+try:
+    r = requests.get(f'{base_url}/ping')
+    if r.text == 'SERVER RUNNING OK':
+        print(r.text)
+    else:
+        print(f'{Fore.RED}ERROR: {Fore.WHITE}Server not connected')
+        sys.exit()
+except Exception as e:
+    print(f'{Fore.RED}ERROR: {Fore.WHITE}{e}')
+    sys.exit()
 
 #Make root folder if it doesnt already exist
 #TODO notify user that a new folders was made
@@ -62,9 +74,9 @@ def client():
     print(f'{Fore.RED}{quit}{Style.RESET_ALL}'.center(columns))
     print(f'='*columns)
     
-    #TODO maybe show the file system structure
+    #TODO maybe show the file system structure upon opening
     while True:
-        op = input(f'{Fore.GREEN}Enter Operation: [d] [u] [m] [v] [-h] [update] [clear]\n{Fore.YELLOW}')
+        op = input(f'{Fore.GREEN}Enter Operation: [d] [udir] [u] [m] [v] [-h] [update] [clear]\n{Fore.YELLOW}')
         
         #Upload file command
         if op == 'u':
@@ -78,6 +90,7 @@ def client():
                     print(f'{Fore.CYAN}{upload(filePath,path)}{Fore.WHITE}')
                     break
 
+        #View a directory
         elif op == 'v':
             path = input(f"{Fore.GREEN}Enter server path: {Fore.YELLOW}")
             #send request to file server
@@ -114,6 +127,7 @@ def client():
                 print(f'{Fore.RED}ERROR:{Fore.WHITE} {r}'.center(56))
                 print(f'{Fore.WHITE}='*46)
     
+        #Make a directory
         elif op == 'm':
             path = input(f"{Fore.GREEN}Enter server path: {Fore.YELLOW}")
             
@@ -126,14 +140,17 @@ def client():
 
             print(r.text) #see if we can eliminate these print statements
 
+        #Download a file from the server
         elif op == 'd':
             #print("this is broken as of now")
             path = input(f"{Fore.GREEN}Enter server path: {Fore.YELLOW}")
-            print(fetch(path))
+            fetch(path)
 
+        #Update the server
         elif op == 'update':
             print(f'{Fore.RED}Sorry! update functionality has not yet been implemented{Fore.WHITE}')
         
+        #Clear terminal
         elif op == 'clear':
             os.system('cls||clear')
             columns = shutil.get_terminal_size().columns
@@ -142,8 +159,49 @@ def client():
             print(f'{Fore.RED}{quit}{Style.RESET_ALL}'.center(columns))
             print(f'='*columns)
         
+        #Display help
         elif op == '-h':
             print("Help manual coming soon")
+
+        #Upload an entire directory to the server
+        elif op == 'udir':
+            #Get destination path
+            path = input(f"{Fore.GREEN}Enter destination path: {Fore.YELLOW}")
+            while True:
+                #Get source path
+                dirPath = input(f'{Fore.GREEN}Enter Source path: {Fore.YELLOW}')
+                
+                #Ensure that this is a directory, not a file TODO in the future automatically decide to upload directories or files
+                if not os.path.isdir(dirPath):
+                    print(f"{Fore.RED}ERROR:{Fore.WHITE} Invalid Path. Select a directory")
+                else:
+                    #generate list of files
+                    files = [f for f in os.listdir(dirPath) if os.path.isfile(os.path.join(dirPath,f))]
+                    
+                    #Confirm with the user that they are going to upload the directory
+                    print(f'{Fore.RED}WARNING: {Fore.WHITE}You are about to upload {Fore.RED}{len(files)}{Fore.WHITE} file(s) to "{Fore.RED}{os.path.normpath(path)}{Fore.WHITE}"')
+                    print(files)
+                    flag = input(f'{Fore.GREEN}Continue? {Fore.WHITE}(y/n){Fore.YELLOW}')
+                    if flag == 'n':
+                        print(f'{Fore.CYAN}Exiting...')
+                        break
+                    elif flag == 'y':
+                        pass
+                    else:
+                        print(f"{Fore.RED}ERROR: {Fore.WHITE}Invalid Input")
+                        print(f'{Fore.CYAN}Exiting...{Fore.YELLOW}')
+                    #Upload files
+                    for f in files:
+                        try:
+                            print(f'Uploading file {f}/{len(files)} [{f}]...')
+                            print(f'{Fore.CYAN}{upload(os.path.join(dirPath,f),path)}{Fore.WHITE}')
+                            print()
+                        except Exception as e:
+                            print(f"{Fore.RED}ERROR: {Fore.WHITE}{e}")
+                    
+                    print(f'Completed uploading {len(files)} files!')
+                    break
+            pass
 
         else:
             print(f'{Fore.RED}ERROR: {Fore.WHITE}Invalid input!')
@@ -169,7 +227,7 @@ def upload(filePath,path):
                     r = requests.post(url,files=file,headers=headers)
                     f.close()
                     return r.text
-            except Exception as e:
+            except Exception:
                 print(f'{Fore.RED}WARNING:{Fore.WHITE} {codec} did not work, trying again')
                 n+=1
         else:
@@ -184,7 +242,7 @@ def upload(filePath,path):
                     r = requests.post(url,files=file,headers=headers)
                     f.close()
                     return r.text
-            except Exception as e:
+            except Exception:
                 print(f'{Fore.RED}WARNING:{Fore.WHITE} {codec} did not work, trying again')
                 n+=1
 
@@ -196,10 +254,12 @@ def fetch(path):
     if r.status_code != 200:
         print(f'{Fore.RED}ERROR: {Fore.WHITE}Server connection error')
         sys.exit()
-    
-    if(r.content.decode('utf-8')[0:5] == "ERROR"):
-        print(r.content.decode('utf-8'))
-        return
+    try:
+        if(r.content.decode('utf-8')[0:5] == "ERROR"):
+            print(f'{Fore.RED}{r.content.decode("utf-8")[0:6]} {Fore.WHITE}{r.content.decode("utf-8")[6:]}')
+            return
+    except UnicodeDecodeError:
+        pass
 
     #path handling can be made safer with OS, the while loop is dangerous
     filename = path.split("/") #get the filename from the path

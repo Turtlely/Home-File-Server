@@ -1,4 +1,3 @@
-from fileinput import filename
 from http.server import HTTPServer, SimpleHTTPRequestHandler,BaseHTTPRequestHandler
 from librarian import *
 import sys
@@ -10,21 +9,17 @@ Handler = BaseHTTPRequestHandler
 class Server(Handler):
     #This is the server that handles the connection
 
-    '''
-    This server can do this:
-    1. upload files from the client to a server directory
-    2. send files from a server directory to the client
-    3. create directories / CREATEDIRECTORY / [PATH FROM ROOT] / [NAME OF DIRECTORY]
-    4. view directories  / VIEWDIRECTORY / [PATH] / [NAME OF DIRECTORY]
-    5. check if a directory exists
-    5. self update when given update files from the client
-    '''
-
     #GET request handler
     def do_GET(self):
+        if self.path == '/ping':
+            self.send_response(200,'OK')
+            self.end_headers()
+            status = 'SERVER RUNNING OK' #status of the server
+            print("Ping recieved")
+            self.wfile.write(bytes(status,'utf-8'))
 
         #Create a directory
-        if self.path[0:6] == '/CDIR/':
+        elif self.path[0:6] == '/CDIR/':
             self.send_response(200,'OK')
             self.end_headers()            
             directory_path = self.path[5:]
